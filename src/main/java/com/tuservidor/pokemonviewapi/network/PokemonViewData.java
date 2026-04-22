@@ -33,7 +33,6 @@ public record PokemonViewData(
     public static final CustomPayload.Id<PokemonViewData> ID =
         new CustomPayload.Id<>(new Identifier("pokemonviewapi", "open_pokemon_view"));
 
-    // playS2C() uses RegistryByteBuf
     public static final PacketCodec<RegistryByteBuf, PokemonViewData> CODEC =
         PacketCodec.of(
             (value, buf) -> value.write(buf),
@@ -51,6 +50,8 @@ public record PokemonViewData(
         String     gender    = buf.readString();
 
         int moveCount = buf.readInt();
+        // [FIX]: Límite de seguridad para evitar crasheos por falta de memoria RAM (OOM)
+        if (moveCount < 0 || moveCount > 4) moveCount = 0; 
         List<String> moves = new ArrayList<>(moveCount);
         for (int i = 0; i < moveCount; i++) moves.add(buf.readString());
 
@@ -64,6 +65,8 @@ public record PokemonViewData(
         String heldItem = buf.readString();
 
         int aspectCount = buf.readInt();
+        // [FIX]: Límite de seguridad para aspectos
+        if (aspectCount < 0 || aspectCount > 20) aspectCount = 0;
         Set<String> aspects = new HashSet<>(aspectCount);
         for (int i = 0; i < aspectCount; i++) aspects.add(buf.readString());
 
@@ -72,32 +75,49 @@ public record PokemonViewData(
     }
 
     public void write(RegistryByteBuf buf) {
-        buf.writeUuid(uuid);
-        buf.writeIdentifier(speciesId);
+        // [FIX]: Prevención de NullPointerException antes de enviar al cliente
+        buf.writeUuid(uuid != null ? uuid : UUID.randomUUID());
+        buf.writeIdentifier(speciesId != null ? speciesId : Identifier.of("cobblemon", "substitute"));
         buf.writeInt(level);
         buf.writeBoolean(shiny);
-        buf.writeString(nature);
-        buf.writeString(ability);
+        buf.writeString(nature != null ? nature : "N/A");
+        buf.writeString(ability != null ? ability : "N/A");
         buf.writeFloat(scale);
-        buf.writeString(gender);
+        buf.writeString(gender != null ? gender : "NONE");
 
-        buf.writeInt(moves.size());
-        for (String m : moves) buf.writeString(m != null ? m : "");
+        if (moves == null) {
+            buf.writeInt(0);
+        } else {
+            buf.writeInt(Math.min(moves.size(), 4));
+            for (int i = 0; i < Math.min(moves.size(), 4); i++) {
+                String m = moves.get(i);
+                buf.writeString(m != null ? m : "");
+            }
+        }
 
         buf.writeInt(ivHp);  buf.writeInt(ivAtk); buf.writeInt(ivDef);
         buf.writeInt(ivSpA); buf.writeInt(ivSpD); buf.writeInt(ivSpe);
 
         buf.writeString(heldItem != null ? heldItem : "minecraft:air");
 
-        buf.writeInt(aspects.size());
-        for (String a : aspects) buf.writeString(a);
+        if (aspects == null) {
+            buf.writeInt(0);
+        } else {
+            buf.writeInt(Math.min(aspects.size(), 20));
+            int count = 0;
+            for (String a : aspects) {
+                if (count++ >= 20) break;
+                buf.writeString(a != null ? a : "");
+            }
+        }
     }
 
     @Override
     public CustomPayload.Id<? extends CustomPayload> getId() { return ID; }
 
     public String genderSymbol() {
-        return switch (gender) {
+        if (gender == null) return "";
+        return switch (gender.toUpperCase()) {
             case "MALE"   -> "♂";
             case "FEMALE" -> "♀";
             default       -> "";
@@ -105,7 +125,8 @@ public record PokemonViewData(
     }
 
     public String genderDisplay() {
-        return switch (gender) {
+        if (gender == null) return "Sin género";
+        return switch (gender.toUpperCase()) {
             case "MALE"   -> "♂ Macho";
             case "FEMALE" -> "♀ Hembra";
             default       -> "Sin género";
@@ -113,8 +134,18 @@ public record PokemonViewData(
     }
 
     public String speciesDisplayName() {
+        if (speciesId == null) return "Desconocido";
         String path = speciesId.getPath().replace("_", " ");
         if (path.isEmpty()) return path;
-        return Character.toUpperCase(path.charAt(0)) + path.substring(1);
+        
+        // [FIX] Capitalización correcta para nombres compuestos (Ej. "Iron Valiant" en lugar de "Iron valiant")
+        String[] words = path.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) {
+            if (!w.isEmpty()) {
+                sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1)).append(" ");
+            }
+        }
+        return sb.toString().trim();
     }
 }
