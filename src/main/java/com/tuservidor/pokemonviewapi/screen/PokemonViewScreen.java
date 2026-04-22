@@ -10,8 +10,12 @@ import com.cobblemon.mod.common.util.math.QuaternionUtilsKt;
 import com.tuservidor.pokemonviewapi.network.PokemonViewData;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -30,7 +34,6 @@ public class PokemonViewScreen extends Screen {
 
     @Override
     protected void init() {
-        // Los botones de modificación se han removido porque pertenecen al menú principal en el servidor
     }
 
     @Override
@@ -40,11 +43,9 @@ public class PokemonViewScreen extends Screen {
         int sy = (this.height - PANEL_H) / 2;
         int rightX = sx + LEFT_W + GAP;
 
-        // PANEL IZQUIERDO: RENDER POKEMON 3D
         drawPanel(ctx, sx, sy, LEFT_W, PANEL_H, 0xE0060612, 0xFFFFCC00);
         renderPokemon(ctx, sx + LEFT_W / 2, sy + PANEL_H - 35, mouseX, mouseY, delta);
 
-        // PANEL DERECHO: ESTADISTICAS E INFORMACIÓN
         drawPanel(ctx, rightX, sy, RIGHT_W, PANEL_H, 0xE0060612, 0xFFFFCC00);
         ctx.drawCenteredTextWithShadow(textRenderer, "✦ " + data.speciesDisplayName() + " ✦", rightX + RIGHT_W / 2, sy + 10, 0xFFAA00);
         
@@ -57,16 +58,22 @@ public class PokemonViewScreen extends Screen {
     private void renderPokemon(DrawContext ctx, int cx, int cy, int mx, int my, float delta) {
         Species species = PokemonSpecies.INSTANCE.getByIdentifier(data.speciesId());
         if (species == null) return;
+        
         float headYaw = (float)Math.atan((cx - mx) / 40.0f) * 40.0f;
         float headPitch = (float)Math.atan(((cy - 40) - my) / 40.0f) * -20.0f;
         Quaternionf rot = QuaternionUtilsKt.fromEulerXYZDegrees(new Quaternionf(), new Vector3f(13f, 35f, 0f));
-        ctx.getMatrices().push();
         
-        // CORRECCIÓN: Z en 50.0 para que el modelo entre en la vista de la cámara sin cortarse
+        // [FIX] Recuperar el ItemStack desde el String enviado por el servidor
+        Identifier itemId = Identifier.tryParse(data.heldItem() != null ? data.heldItem() : "minecraft:air");
+        Item heldItem = itemId != null ? Registries.ITEM.getOrEmpty(itemId).orElse(Items.AIR) : Items.AIR;
+        ItemStack heldStack = heldItem != Items.AIR ? new ItemStack(heldItem) : ItemStack.EMPTY;
+
+        ctx.getMatrices().push();
         ctx.getMatrices().translate(cx, cy, 50.0);
         ctx.getMatrices().scale(RENDER_SCALE, RENDER_SCALE, RENDER_SCALE);
         
-        PokemonGuiUtilsKt.drawProfilePokemon(new RenderablePokemon(species, data.aspects(), ItemStack.EMPTY),
+        // Pasamos heldStack en lugar de ItemStack.EMPTY
+        PokemonGuiUtilsKt.drawProfilePokemon(new RenderablePokemon(species, data.aspects(), heldStack),
                 ctx.getMatrices(), rot, PoseType.PROFILE, floatingState, delta, 1.0f, false, true, 
                 1f, 1f, 1f, 1f, headYaw, headPitch);
         ctx.getMatrices().pop();
