@@ -1,0 +1,59 @@
+plugins {
+    id 'fabric-loom' version '1.11-SNAPSHOT'
+    id 'maven-publish'
+}
+
+archivesBaseName = project.archives_base_name
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.fabricmc.net/" }
+    // Repositorio oficial donde Cobblemon publica sus artefactos
+    maven { url "https://maven.impactdev.net/repository/development/" }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.17.2"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.110.0+1.21.1"
+
+    // Cobblemon — solo para compilar, no se incluye en el JAR final
+    // (el jugador ya lo tiene instalado como mod independiente)
+    modCompileOnly "com.cobblemon:fabric:1.7.3+1.21.1"
+
+    // Kotlin stdlib (Cobblemon está en Kotlin)
+    compileOnly "org.jetbrains.kotlin:kotlin-stdlib:2.0.0"
+}
+
+loom {
+    mods {
+        "pokemonviewapi" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    filteringCharset "UTF-8"
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from("LICENSE") { rename { "${it}_${project.archivesBaseName}" } }
+}

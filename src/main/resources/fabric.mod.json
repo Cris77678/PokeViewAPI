@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "pokemonviewapi",
+  "version": "${version}",
+  "name": "PokemonViewAPI",
+  "description": "Public client-side API that renders a Pokemon in 3D. Any server-side mod can send a packet to trigger the viewer.",
+  "authors": ["TuServidor"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main":   ["com.tuservidor.pokemonviewapi.PokemonViewAPIServer"],
+    "client": ["com.tuservidor.pokemonviewapi.PokemonViewAPIClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.2",
+    "fabric-api": "*",
+    "cobblemon": ">=1.7.3",
+    "minecraft": "1.21.1"
+  }
+}
