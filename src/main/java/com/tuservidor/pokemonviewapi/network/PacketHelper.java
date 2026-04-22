@@ -2,6 +2,7 @@ package com.tuservidor.pokemonviewapi.network;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.List;
@@ -31,11 +32,18 @@ public final class PacketHelper {
             String       heldItem,
             Set<String>  aspects
     ) {
+        // [FIX CRÍTICO]: Verificar si el jugador TIENE el mod instalado en su cliente.
+        // Si no lo hacemos, el servidor expulsará al jugador por paquete desconocido.
+        if (!ServerPlayNetworking.canSend(player, PokemonViewData.ID)) {
+            player.sendMessage(Text.literal("§c¡Necesitas instalar el mod PokeViewAPI en tu cliente para ver esto en 3D!"), false);
+            return;
+        }
+
         PokemonViewData payload = new PokemonViewData(
             uuid, speciesId, level, shiny, nature, ability, scale, gender,
             moves, ivHp, ivAtk, ivDef, ivSpA, ivSpD, ivSpe, heldItem, aspects
         );
-        // Fabric 1.21.1: send(ServerPlayerEntity, CustomPayload)
+        
         ServerPlayNetworking.send(player, payload);
     }
 }
